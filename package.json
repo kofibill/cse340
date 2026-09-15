@@ -1,0 +1,28 @@
+{
+  "name": "wdd340",
+  "version": "1.0.0",
+  "description": "Building backend apps with Javascript with the help of Node.js",
+  "homepage": "https://github.com/kofibill/wdd340#readme",
+  "bugs": {
+    "url": "https://github.com/kofibill/wdd340/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kofibill/wdd340.git"
+  },
+  "license": "ISC",
+  "author": "William Nyemasem Osiakwan",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ejs": "^6.0.1",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
