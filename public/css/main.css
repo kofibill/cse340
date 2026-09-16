@@ -1,30 +1,232 @@
-html, body {
-    background-color: lightblue;
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 20px;
+
+/* ------------------------------------------------------------
+   1. DESIGN TOKENS
+   ------------------------------------------------------------ */
+:root {
+  --paper:    #ffffff;
+  --surface:  #eef2f0;   /* band behind nav and footer */
+  --ink:      #16242b;   /* body text */
+  --ink-soft: #4a5c63;   /* secondary text, footer */
+  --rule:     #d3dbd8;   /* hairlines */
+  --accent:   #14545f;   /* links */
+
+  --text-sm:   0.875rem;
+  --text-base: 1.0625rem;
+  --text-lg:   1.25rem;
+  --text-xl:   1.75rem;
+  --text-2xl:  2.25rem;
+
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+
+  --measure: 68ch;   /* max line length for readable text */
+}
+
+
+/* ------------------------------------------------------------
+   2. BASE / RESET
+   ------------------------------------------------------------ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
-    nav {
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
+  margin: 0;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: var(--text-base);
+  line-height: 1.6;
 
-        li {
-            display: inline;
-            margin-right: 15px;
-        }
+  /* sticky footer */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-        a {
-            text-decoration: none;
-            color: #333;
-            font-weight: bold;
 
-            &:hover {
-                color: #0066cc;
-            }
-        }
-    }
-}             
+/* ------------------------------------------------------------
+   3. TYPOGRAPHY
+   ------------------------------------------------------------ */
+h1, h2 {
+  line-height: 1.2;
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+}
+
+h1 { font-size: var(--text-2xl); }
+h2 { font-size: var(--text-xl); margin-top: var(--space-4); }
+
+p {
+  margin: 0 0 var(--space-3);
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+
+/* ------------------------------------------------------------
+   4. NAVIGATION
+   No <header> tag exists, so the band and border go on <nav>
+   itself.
+   ------------------------------------------------------------ */
+nav {
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-2);
+}
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+nav a {
+  display: inline-block;
+  padding: var(--space-1) 0;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+nav a:hover,
+nav a:focus-visible {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+
+/* ------------------------------------------------------------
+   5. MAIN CONTENT
+   ------------------------------------------------------------ */
+main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-2);
+}
+
+.main-logo {
+  display: block;
+  max-width: 100%;
+  height: auto;         /* keeps the logo from overflowing on mobile */
+  margin: var(--space-3) 0;
+}
+
+
+/* ------------------------------------------------------------
+   6. LISTS
+   One shared style covers projects.ejs and categories.ejs
+   (plain text lines). A more specific rule underneath handles
+   organizations.ejs, where each li also has an image and a
+   <strong> name.
+   ------------------------------------------------------------ */
+main ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+main ul li {
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--accent);
+}
+
+/* Organizations list: logo + name + contact on one line */
+main ul li:has(img) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+main ul li img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;   /* keeps logos of different shapes from
+                             stretching or distorting */
+  flex-shrink: 0;         /* stops the logo from being squeezed
+                             when the text wraps on mobile */
+}
+
+main ul li strong {
+  color: var(--ink);
+}
+
+
+/* ------------------------------------------------------------
+   7. FOOTER
+   ------------------------------------------------------------ */
+footer {
+  background-color: var(--surface);
+  border-top: 1px solid var(--rule);
+  padding: var(--space-3) var(--space-2);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+
+/* ------------------------------------------------------------
+   8. ACCESSIBILITY
+   ------------------------------------------------------------ */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* ------------------------------------------------------------
+   9. RESPONSIVE: 40rem (640px) and up
+   Base rules above are the mobile layout; this adds what
+   changes on wider screens.
+   ------------------------------------------------------------ */
+@media (min-width: 40rem) {
+  nav {
+    padding-inline: var(--space-4);
+  }
+
+  main {
+    padding-inline: var(--space-4);
+  }
+
+  footer {
+    padding-inline: var(--space-4);
+  }
+
+  /* Categories and projects lists get two columns; organizations
+     stays single-column since each row is already wide (logo +
+     name + email). */
+  #categories-list,
+  #projects-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
