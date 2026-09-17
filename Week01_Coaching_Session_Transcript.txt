@@ -1,0 +1,161 @@
+WEEK 01 COACHING SESSION TRANSCRIPT
+Learner: William
+Session Type: Coaching Session (not a test)
+====================================================================
+
+COACH: Welcome! Just to be clear from the start, this is a coaching session, not a test. It is perfectly okay—and even encouraged—to say "I don't know" or "I made a mistake." That's the fastest way we'll learn today.
+
+Hey William! Good to have you here for this Week 01 coaching session. This is a safe space — no grading, no judgment, just us digging into the thinking behind your work on the Express/EJS site.
+
+Since we're chatting here in this text interface, whenever we get to a piece of code you want to walk me through, just paste the snippet right into the chat.
+
+Let's start with Topic 1: Express Routing. Could you paste a snippet from your server.js — maybe the route you added for the categories page, or any route you think is interesting — and walk me through what it does?
+
+--------------------------------------------------------------------
+TOPIC 1: EXPRESS ROUTING
+--------------------------------------------------------------------
+
+WILLIAM:
+```javascript
+app.get('/categories', async(req, res) =>{
+  const title = 'Categories';
+  res.render('categories', {title});
+});
+```
+this is the route i added for my categories page
+first this route is set down to receive any incoming request for the categories page. when the user makes a request the server triggers the get method.
+also this get method is supposed to tell express where to find the page which is sorted after in this case the categories page. the title variable will also place its value inside the ejs page where it is needed in this case in an h1 tag.finally the res.render method will send the categories page back to the client side. this is what i think
+
+COACH: That's a solid explanation, William — you've clearly got the core flow down: request comes in, server matches the route, and res.render sends back the rendered page with your data plugged in.
+
+One thing I noticed, and I want you to think about it rather than me just telling you: you marked this route handler as async, but there's no await anywhere inside it. What was your reasoning for making it async — was that intentional, or something left over from elsewhere?
+
+WILLIAM: well i do not know, because the other routes had the same async but no await code in them and since i am still new to and learning server side with JavaScript i just followed the same pattern in writing the route for the categories the same way
+
+COACH: Totally fair — and I appreciate you being honest about that instead of guessing an explanation just to sound confident. That's exactly the kind of thing this session is for.
+
+Here's a thought to sit with: async on a function doesn't cause any harm by itself if you're not using await — it just means the function always returns a Promise, even if you don't need one. It's not "wrong," just unnecessary here unless you plan to do something like a database call or file read inside that route later.
+
+So here's my question: can you think of a situation, maybe elsewhere in your app, where you would need to use await inside a route like this?
+
+WILLIAM: well from my quick research and understanding of async and await concept, i do not think the await is needed inside my route
+
+COACH: That's true for this specific route — no disagreement there. But I was asking something a bit different: can you think of a case, maybe a route you might write in the future for this project, where you'd actually need await inside the handler? For example, what if a route needed to fetch something from a database before rendering the page?
+
+WILLIAM: yes i can think of a case and the case is just as the example you gave me now. i might need an await in my handler when the express is getting data from a database
+
+COACH: Exactly right! If you were pulling data from a database (say, with something like await db.query(...) or a Mongoose call), that operation takes time and returns a Promise — so you'd need await to pause execution until the data comes back, before you pass it into res.render. Good instinct.
+
+That wraps up a nice, solid discussion on Express routing — you get the request/response cycle and you're already reasoning correctly about when async/await actually earns its keep.
+
+--------------------------------------------------------------------
+TOPIC 2: JAVASCRIPT LANGUAGE PRINCIPLES
+--------------------------------------------------------------------
+
+COACH: Let's move to Topic 2: JavaScript Language Principles. Could you paste a JavaScript function from your project — doesn't have to be from server.js, could be client-side JS too — and walk me through what it does and why you wrote it that way?
+
+WILLIAM:
+```javascript
+app.listen(PORT, () => {
+  console.log(`Server is running at http://127.0.0.1:${PORT}`);
+  console.log(`Environment: ${NODE_ENV}`);
+});
+```
+alright, this is also from my server.js file and this means that express sets a listening port on the server to listen for incoming request from the client side. express will display messages like, server is running at http......
+and also display a message about the environment it is running in. either development or production but in this case it is likely production
+
+COACH: Good explanation of what this does functionally. Now let's zoom into the JavaScript language principles angle, since that's the topic we're covering.
+
+Look at the second argument you passed to app.listen() — that () => { ... } bit. That's an arrow function. Why do you think you (or whatever pattern you followed) used an arrow function here instead of writing a regular function() {...}?
+
+WILLIAM: i think an arrow function is used here because of its simplicity
+
+COACH: That's part of it — arrow functions are more concise, for sure. Let's dig one level deeper though: beyond just being shorter to type, is there a specific behavioral difference between arrow functions and regular functions (especially around something like this) that might matter here, even if it's not obviously affecting this particular callback?
+
+WILLIAM: well yes, there are specific behavioral difference between a regular and arrow function regarding the this keyword because regular functions have its own this but arrow functions do not have its own this but i do not know how they matter here
+
+COACH: Good — you've got the core fact right: regular functions get their own this (determined by how they're called), while arrow functions inherit this from the surrounding scope where they were defined (lexical this).
+
+In this specific app.listen() callback, it doesn't really matter practically — you're not using this inside that function at all, so either would work fine. But here's why it's still a good habit: if you did need this to refer to something from the outer scope (say, a class instance or a config object defined outside), an arrow function would automatically give you access to it, while a regular function would give you a different (and often confusing) this — usually the global object or undefined in strict mode. That's actually one of the most common bug sources for JS beginners: unexpected this inside a regular callback.
+
+So the takeaway: using arrow functions for simple callbacks like this is a safe default habit, partly for brevity, partly because it avoids this-related surprises down the line.
+
+Nice work reasoning through that even without knowing the answer up front. That covers JavaScript language principles well.
+
+--------------------------------------------------------------------
+TOPIC 3: EJS PARTIALS AND PAGES
+--------------------------------------------------------------------
+
+COACH: Let's move to Topic 3: EJS Partials and Pages. Could you paste a snippet of one of your EJS files — maybe your header or footer partial, or part of your categories.ejs page — and walk me through what it does and why you structured it that way?
+
+WILLIAM:
+```html
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <h2>Welcome to the CSE 340 Service Network!</h2>
+    <p>Our mission is to promote service across the world by connecting volunteers with service opportunities in their community.</p>
+    <img class="main-logo" src="images/cse340-service-network.png" alt="CSE 340 Service Network Logo">
+</main>
+<%- include('partials/footer') %>
+```
+so, this is my home.ejs file. so to begin this file has a header partial at the top, the main openinging and closing tag containing some information and a footer partial at the button.
+so the partial at the top of this file is like an es module import which imports the header from another file. so instead of rewriting the whole header stuff here again i rather represent it here with simple code like <%- include('partials/header') %>. so whatever code is in partials/header will be transferred here. same applies to the <%-include('partials/footer') %>. this makes the header and footer partial just at one place and reused at different places needed and if there are changes, i will just change it at the source and it updates wherever it's used.
+
+COACH: That's a really nice explanation — you clearly get the purpose of partials: DRY code, single source of truth, reuse across pages. The "like an ES module import" analogy is actually a pretty good mental model too.
+
+Let me push on one specific detail though. You used <%- include(...) %> — with a dash, not <%= include(...) %>. Do you know why the dash matters here, and what would happen if you used <%= instead?
+
+WILLIAM: well, i used the dash here because it is the syntax that renders raw html. so i am trying to say that it should include ethe raw html code inside the header file which is sorted inside the partials. I didnt use the = sign because it is the syntax for variables. Its like a placeholder for values to be dropped inside it
+
+COACH: You're on the right track with the distinction, and let me sharpen it slightly: <%= doesn't just work for "variables" — it actually HTML-escapes whatever it outputs (so <h1> would show up literally as text <h1> on the page, not as an actual heading). <%- outputs the raw string unescaped, so any HTML tags inside it get rendered as actual HTML elements.
+
+Since your header/footer partials contain real HTML markup (<nav>, <header>, links, etc.), you need <%- so that markup actually renders as a webpage rather than showing up as escaped text on the screen. Good instinct even without knowing the escaping mechanic by name.
+
+That covers EJS partials and pages nicely.
+
+--------------------------------------------------------------------
+TOPIC 4: FRONTEND CSS
+--------------------------------------------------------------------
+
+COACH: Now for Topic 4: Frontend CSS. Could you paste a CSS snippet from your project — maybe styling for the header, footer, or the categories page — and walk me through what it does and why you made those styling choices?
+
+WILLIAM:
+```css
+footer {
+  background-color: var(--surface);
+  border-top: 1px solid var(--rule);
+  padding: var(--space-3) var(--space-2);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+```
+so this code is for the footer
+so here, my footer has a background color with a global variable containing surface color with a border top thickness of 1px with a solid color of rule. it also has inside spacing of padding with its assigned values and a text color as well. finally i added a font size to make it reasonable for a footer and shifted it to the middle with the text align property name.
+
+COACH: That's a good rundown of what each property does. Let's dig into the "why" behind one specific choice: you used var(--surface), var(--rule), var(--ink-soft), var(--space-3) etc. — CSS custom properties (variables) — instead of hardcoding actual color/size values directly in this rule. What's the reasoning behind that approach?
+
+WILLIAM: I use CSS custom properties like var(--surface) and var(--space-3) because they allow me to build a true, scalable design system. Instead of hunting down hardcoded hex values, it gives me centralized control so i can update the entire UI or swap into dark mode from a single location. It also completely stops 'design drift' by forcing developers to stick to strict layout tokens rather than guessing pixel values. Plus, it gives the code semantic meaning; seeing var(--ink-soft) immediately tells you it's a secondary text color, which makes the codebase much easier for a team to read and maintain. It is also easy to use when you need to change something written all over the entire file, you don't need to track down everything you write. it can just be changed from one single variable and everywhere it is written or used gets the updates
+
+COACH: That's a very thorough and articulate answer — nicely done. Let me test that understanding with something practical: if you wanted to actually implement a dark mode toggle for your site using this variable system, what would you need to do? Walk me through the basic approach.
+
+WILLIAM: Okay, to implement a toggle, I map out two sets of variables in CSS: a default set on the :root and an overridden dark set under a data-theme="dark" selector. Then, I use a lightweight JavaScript click listener on the toggle button to dynamically flip that data-theme attribute on the HTML root element. Finally, to ensure a great user experience, I persist their selection using localStorage and check for it early in the page load to prevent any layout flashing.
+
+COACH: That's an excellent, complete answer — you clearly understand not just the "how" but the UX considerations too (avoiding flash of wrong theme on load is a nice detail most beginners miss).
+
+--------------------------------------------------------------------
+SESSION SUMMARY
+--------------------------------------------------------------------
+
+That wraps up all four mandatory topics:
+1. Express Routing — you understood the request/response cycle and reasoned correctly about when async/await is actually needed.
+2. JavaScript Language Principles — you nailed the lexical `this` distinction between arrow and regular functions.
+3. EJS Partials and Pages — you understood partials as reusable includes and the escaped vs. unescaped output distinction.
+4. Frontend CSS — strong grasp of CSS custom properties as a design system, plus a solid dark-mode implementation plan.
+
+Nice work today, William — you were honest about gaps when they came up, which is exactly the right instinct for learning.
+
+====================================================================
+END OF TRANSCRIPT
+====================================================================
