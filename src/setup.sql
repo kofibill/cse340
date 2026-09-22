@@ -12,6 +12,9 @@ VALUES
 ('GreenHarvest Growers', 'An urban farming collective promoting food sustainability and education in local neighborhoods.', 'contact@greenharvest.org', 'greenharvest-logo.png'),
 ('UnityServe Volunteers', 'A volunteer coordination group supporting local charities and service initiatives.', 'hello@unityserve.org', 'unityserve-logo.png');
 
+select organization_id, name, description, contact_email, logo_filename
+from organization;
+
 CREATE TABLE service_projects (
     project_id SERIAL PRIMARY KEY,
     organization_id INTEGER NOT NULL REFERENCES organization(organization_id),
@@ -43,3 +46,49 @@ INSERT INTO service_projects (organization_id, title, description, location, pro
 (3, 'Senior Tech Help Day', 'Assist senior citizens with smartphones, email, and video calls.', 'Senior Center', '2026-11-05'),
 (3, 'Coat Drive Collection', 'Collect and sort donated winter coats for distribution.', 'UnityServe Office', '2026-11-19'),
 (3, 'Youth Mentoring Night', 'Facilitate a mentoring and homework help session for local teens.', 'Community Youth Hall', '2026-12-03');
+
+SELECT
+        sp.project_id,
+        sp.title,
+        sp.description,
+        sp.location,
+        sp.project_date,
+        o.name AS organization_name
+    FROM public.service_projects sp
+    JOIN public.organization o ON sp.organization_id = o.organization_id
+    ORDER BY sp.project_date;
+
+CREATE TABLE category (
+    category_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE project_category (
+    project_id INTEGER NOT NULL REFERENCES service_projects(project_id),
+    category_id INTEGER NOT NULL REFERENCES category(category_id),
+    PRIMARY KEY (project_id, category_id)
+);
+
+INSERT INTO category (name) VALUES
+('Environmental'),
+('Educational'),
+('Community Service'),
+('Health and Wellness');
+
+INSERT INTO project_category (project_id, category_id) VALUES
+(1, 1),   -- Park Cleanup Day -> Environmental
+(2, 3),   -- Playground Build -> Community Service
+(3, 3),   -- Home Repair Blitz -> Community Service
+(4, 1),   -- Trail Restoration -> Environmental
+(5, 4),   -- Winter Shelter Setup -> Health and Wellness
+(6, 1),   -- Community Garden Planting -> Environmental
+(7, 2),   -- Compost Workshop -> Educational
+(7, 1),   -- Compost Workshop also -> Environmental  (shows the many-to-many in action)
+(8, 3),   -- Farmers Market Support -> Community Service
+(9, 1),   -- Seed Bank Sorting -> Environmental
+(10, 1),  -- Orchard Cleanup -> Environmental
+(11, 2),  -- Reading Buddies Kickoff -> Educational
+(12, 3),  -- Food Pantry Stocking -> Community Service
+(13, 4),  -- Senior Tech Help Day -> Health and Wellness
+(14, 3),  -- Coat Drive Collection -> Community Service
+(15, 2);  -- Youth Mentoring Night -> Educational
