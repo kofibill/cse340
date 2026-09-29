@@ -13,7 +13,7 @@ router.get('/', showHomePage);
 router.get('/organizations', showOrganizationsPage);
 router.get('/projects', showProjectsPage);
 router.get('/categories', showCategoriesPage);
-router.get('/organizations/:id', showOrganizationDetailsPage);
+router.get('/organization/:id', showOrganizationDetailsPage);
 
 // error-handling routes
 router.get('/test-error', testErrorPage);
