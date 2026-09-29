@@ -1,0 +1,457 @@
+Week 02 Coaching Session Transcript
+CSE 340 — Database Retrieval / Categories Assignment
+================================================================
+
+COACH: Welcome! Just to be clear from the start, this is a coaching
+session, not a test. It is perfectly okay—and even encouraged—to say
+"I don't know" or "I made a mistake." That's the fastest way we'll
+learn today.
+
+Hey William — good to be doing this with you. This is a safe space to
+think out loud, including the messy parts. If something didn't work
+the first time, or you copied something and aren't 100% sure why it
+works, that's exactly the kind of thing worth talking through here,
+not hiding.
+
+Since we're in a chat interface, whenever we get into a specific piece
+of code, I'll ask you to paste it in rather than me assuming what it
+looks like.
+
+We've got four topics to cover — database design, your Node.js data
+access layer, Express routing, and EJS rendering — but there's no
+fixed order, so we can follow wherever the conversation naturally
+goes.
+
+Let's start with Topic 1: Relational Database Design. You built out
+organization, service_projects, category, and a join table
+project_category this week. Can you paste the CREATE TABLE statement
+for project_category and walk me through why that table needed to
+look different from the others — what problem were you solving with
+it?
+
+----------------------------------------------------------------
+
+WILLIAM:
+CREATE TABLE project_category (
+    project_id INTEGER NOT NULL REFERENCES service_projects(project_id),
+    category_id INTEGER NOT NULL REFERENCES category(category_id),
+    PRIMARY KEY (project_id, category_id)
+);
+
+----------------------------------------------------------------
+
+COACH: Good, thanks for pasting that. I notice this table doesn't
+have its own id column like your other tables did — no SERIAL PRIMARY
+KEY here. Instead the primary key is (project_id, category_id)
+together, as a pair.
+
+Why do you think it's built that way instead of giving it its own
+auto-incrementing id like organization and service_projects have?
+
+----------------------------------------------------------------
+
+WILLIAM: Okay, this table is known as the bridge, third, or the
+junction table which is used to link two tables together in a many to
+many relationship setting. Two tables which are many to many cannot
+have each other's primary keys inside them as a foreign key. So the
+third table is needed to solve the problem of containing the primary
+keys of the other two tables. Also it is built with a composite
+primary key to ensure data integrity and uniqueness. This pair or the
+project_id and category_id tells us that, one project can be found in
+many categories and one category can house lots of project which
+enforces the relationship between service project table and the
+category table.
+
+----------------------------------------------------------------
+
+COACH: That's a strong explanation — you've got the core idea exactly
+right: many-to-many relationships can't be represented with a simple
+foreign key on either side, so the junction table exists specifically
+to hold the pairing.
+
+One thing to sharpen slightly: you said the composite key ensures
+"data integrity and uniqueness" — that's true, but can you be
+specific about what exact scenario it prevents? In other words, if
+project_id and category_id were just two regular columns with no
+composite primary key at all, what bad thing could happen when
+someone runs an INSERT?
+
+----------------------------------------------------------------
+
+WILLIAM: well, i think it prevents the scenrio of duplication
+
+----------------------------------------------------------------
+
+COACH: Right — duplication is the shape of it. Let's make it
+concrete: walk me through exactly what row would get inserted twice,
+and why that duplicate would actually be a problem for your app (not
+just "messy data" — what would break or look wrong if project 7 ended
+up linked to category 1 two separate times in the table)?
+
+----------------------------------------------------------------
+
+WILLIAM: I do not know kindly teach me
+
+----------------------------------------------------------------
+
+COACH: No problem — this is a good one to slow down on.
+
+Imagine your project_category table did NOT have that composite
+primary key, and someone accidentally ran the insert twice (easy
+mistake — maybe a network hiccup and a retry, or copy-pasting a
+script twice):
+
+project_id | category_id
+7          | 1
+7          | 1
+
+Now think about how your categories.js (or a future version of it)
+would actually use this table. Down the line, you're going to write a
+query like: "show me every project that belongs to category 1." That
+query does a JOIN through project_category. If project 7 has two rows
+linking it to category 1, the join returns project 7 twice in the
+results.
+
+So on your categories page, when you eventually list "Environmental"
+projects, "Community Garden Planting" would show up twice in the
+list — not because it's actually two different projects, but purely
+because of a database bookkeeping accident. That's a real, visible
+bug a user would see.
+
+The composite primary key (project_id, category_id) prevents this at
+the database level — Postgres physically rejects the second INSERT
+with a primary key violation, so the duplicate can never exist in the
+first place. You don't have to remember to check for it in your
+JavaScript code; the database enforces it for you.
+
+Does that distinction make sense — that it's not just "cleaner data"
+in the abstract, but it prevents a specific, visible display bug down
+the line?
+
+----------------------------------------------------------------
+
+WILLIAM: yes it makes sense now
+
+----------------------------------------------------------------
+
+COACH: Good — that's Topic 1 solidly covered: you can explain what
+the junction table is for, why the composite key exists, and now the
+concrete failure it prevents.
+
+Let's move to Topic 2: Server-Side Data Access Logic (Node.js).
+
+Can you paste your src/models/categories.js file? Once I see it, I
+want to hear you walk through what happens, step by step, from the
+moment getAllCategories() is called to the moment it returns data —
+including what await is actually doing in that function.
+
+----------------------------------------------------------------
+
+WILLIAM:
+import db from './db.js'
+
+const getAllCategories = async () => {
+    const query = `
+        SELECT category_id, name
+        FROM public.category
+        ORDER BY name;
+    `;
+
+    const result = await db.query(query);
+    return result.rows;
+}
+export { getAllCategories }
+
+okay so this is the model for my categories. the first line imports
+the db connection from the db.js file. following that, there is an
+async keyword that will tell the program that getAllCategories will
+perform a task whose results will return at a later time. which means
+it promises to bring back a result. there brings us to the constant
+variable named query which has the select statement needed to extract
+the info from the database. also, there is an await keyword inside a
+constant variable named result which which is with db.querry(query)
+which tells the program to hold and wait for a response from the
+database because of the select statement. and the retults are
+returned. finally the export keyword exports the function for other
+parts of the program to import and use.
+
+----------------------------------------------------------------
+
+COACH: Good walkthrough — you've got the sequence right and you
+clearly understand what each piece does mechanically. I want to push
+on one part though, since you used the word "promise" — that's
+actually a precise technical term in JavaScript, not just a casual
+way of saying "it'll happen later."
+
+What do you think would happen if you removed the await keyword from
+in front of db.query(query) — what would result actually be at that
+point, and what would result.rows give you then?
+
+----------------------------------------------------------------
+
+WILLIAM: if the await is removed, i think nothing really would happen
+because async on its own can stand. for the results i think it would
+bring out the results of the select statement normally. i stand to be
+corrected
+
+----------------------------------------------------------------
+
+COACH: Good instinct that "async" "can stand on its own" — that
+part's true, an async function is still valid without any await
+inside it. But the second part is where the real gap is, and it's
+worth sitting with rather than glossing over, because this exact
+mistake is one of the most common bugs beginners hit in Node.
+
+Here's a way to think about it: db.query(query) doesn't hand back
+your rows immediately. Talking to a database over the network takes
+time — milliseconds, but not zero. So db.query(query) actually
+returns a Promise right away — a placeholder object that represents
+"the result that will exist once the database responds."
+
+await is the thing that says: "pause this function here, and don't
+move to the next line until that Promise actually resolves into a
+real value."
+
+So if you removed await:
+
+const result = db.query(query);  // no await
+return result.rows;
+
+What do you think result would actually be at that line — a Promise,
+or the actual rows? And knowing that, what do you think result.rows
+would be?
+
+----------------------------------------------------------------
+
+WILLIAM: i think it would return actual rows
+
+----------------------------------------------------------------
+
+COACH: That's the part I want to correct clearly, because it's the
+crux of this whole topic.
+
+Without await, result would NOT be the rows — it would still be the
+Promise object itself, the placeholder, because the database hasn't
+answered yet at the moment that line of code runs. JavaScript doesn't
+wait around for slow operations unless you explicitly tell it to with
+await.
+
+So result.rows in that case would be undefined — because a Promise
+object doesn't have a .rows property; only the actual resolved data
+does. Your function would return undefined, and then in your
+categories.ejs, categories.forEach(...) would crash, because you
+can't call .forEach() on undefined.
+
+This is exactly why await matters here: it's not optional syntax
+decoration, it's the thing that converts "a promise of future data"
+into "the actual data," by pausing execution until the database
+genuinely responds.
+
+Given that — can you think of why the function also needs to be
+marked async in the first place for await to even be allowed inside
+it?
+
+----------------------------------------------------------------
+
+WILLIAM: i do not know for now
+
+----------------------------------------------------------------
+
+COACH: That's a totally fine place to leave it for now — this is
+genuinely one of the trickier JavaScript concepts, and it's better to
+name the gap than fake past it.
+
+Quick answer, then we'll move on: await is only allowed to exist
+inside a function marked async. JavaScript requires this because
+pausing mid-function to wait for a Promise is special behavior — it
+changes how the whole function runs (it makes the function itself
+return a Promise too, rather than a plain value). The async keyword
+is basically you telling the JavaScript engine "heads up, this
+function is going to do that pausing thing, so treat it differently."
+Worth reading a short explainer on async/await on MDN or
+javascript.info before your next project — you clearly get the what,
+and the why will click fast once you see a diagram of it.
+
+That's a solid pass on Topic 2 — you understand the query, the await,
+and now the reason .rows would break without it.
+
+Let's move to Topic 3: Express Server Logic and Routing.
+
+Can you paste your /categories route from server.js? I want to hear
+you explain what req and res actually represent, and why res.render()
+needs that second argument object.
+
+----------------------------------------------------------------
+
+WILLIAM:
+app.get('/categories', async (req, res) => {
+  const categories = await getAllCategories();
+  const title = 'Categories';
+  res.render('categories', { title, categories });
+});
+
+so in this get method, the req listens to incoming request from the
+client side and the res sends back appropriate responses back to the
+client. well i think the res.render needs a second argument because
+of its purpose is to pass data from my Node.js backend into my
+frontend HTML template
+
+----------------------------------------------------------------
+
+COACH: That's right, and cleanly put — req for the incoming request,
+res for what you send back, and the second argument to res.render()
+as the bridge carrying backend data into the template.
+
+Let's get specific about the mechanics of that bridge. In your route,
+you're passing { title, categories }. In your categories.ejs, you
+access these as title and categories directly — not req.title or
+anything like that.
+
+Can you explain why the object you pass into res.render() uses the
+shorthand { title, categories } instead of writing it out as { title:
+title, categories: categories } — and what those two forms actually
+mean once EJS receives them?
+
+----------------------------------------------------------------
+
+WILLIAM: well i do not know, kindly explain to me
+
+----------------------------------------------------------------
+
+COACH: Fair enough — this is a small JavaScript convenience feature,
+not something you'd necessarily encounter unless someone points it
+out.
+
+{ title, categories } is called object shorthand property syntax.
+It's just a shortcut. When you write:
+
+{ title, categories }
+
+JavaScript looks at the variable names you already have (title and
+categories) and automatically builds:
+
+{ title: title, categories: categories }
+
+So the two forms are functionally identical — same object, same
+result. The shorthand only works because your variable names happen
+to match exactly what you want the object's keys to be called. If you
+had a variable called pageTitle but wanted the EJS template to see it
+as title, you'd have to write it the long way: { title: pageTitle }.
+
+That matters practically because it's why your EJS file can just
+write <%= title %> — EJS receives an object with a key literally
+named title, and whatever variable name you used to build that value
+on the Node.js side doesn't matter to EJS at all; only the key name
+does.
+
+Given that — in your categories.ejs, if you changed the key in your
+route to { pageTitle: title, categories } instead, what would you
+need to change in the EJS file for the page to still display the
+heading correctly?
+
+----------------------------------------------------------------
+
+WILLIAM: i dont know
+
+----------------------------------------------------------------
+
+COACH: No worries — let's reason it through together rather than me
+just telling you, since this connects directly to what we just
+covered.
+
+Think back to what the shorthand actually does: it builds an object
+where the key name is what EJS sees. If your route becomes:
+
+res.render('categories', { pageTitle: title, categories });
+
+The object now has a key literally called pageTitle, not title — even
+though the value stored there still came from your title variable.
+
+So in your categories.ejs, where you currently have <%= title %> —
+what do you think would happen if you left that line unchanged, and
+just ran the page? Would it still show "Categories," would it error,
+or something else?
+
+----------------------------------------------------------------
+
+WILLIAM: It would throw an error, specifically a ReferenceError
+stating that title is not defined.
+
+----------------------------------------------------------------
+
+COACH: Exactly right — and you can even connect that back to Topic 2:
+it's the same underlying idea as the result.rows being undefined
+problem. In both cases, a name in your code has to exactly match a
+name the other side is expecting, or JavaScript has nothing to hand
+back. Good, that's Topic 3 solidly covered — you understand req/res,
+why the second argument exists, and now the key-name contract between
+the route and the view.
+
+Let's move to Topic 4: Client-Side Rendering (EJS Templates).
+
+Can you paste your current categories.ejs file? I want to hear you
+explain the forEach loop specifically — what <% %> vs <%= %> each do,
+and why you need both types in that loop rather than just one.
+
+----------------------------------------------------------------
+
+WILLIAM:
+<%- include('partials/header') %>
+<main>
+    <h1><%= title %></h1>
+    <ul id="categories-list">
+        <% categories.forEach(category => { %>
+            <li><%= category.name %></li>
+        <% }) %>
+    </ul>
+</main>
+<%- include('partials/footer') %>
+
+The scriptlet tag (<% %>) runs the forEach loop logic silently behind
+the scenes, while the output tag (<%= %>) explicitly writes the
+actual category names into the HTML.
+
+----------------------------------------------------------------
+
+COACH: Solid — that's the correct core distinction, and cleanly
+stated: one runs logic silently, one prints a value into the page.
+
+Let's dig one level deeper on the loop itself, since it's the most
+important line here. categories.forEach(category => { ... }) runs
+once for every item in the categories array.
+
+Question for you: where did that categories array actually come
+from — trace it all the way back through the three files we've
+already discussed today (the model, the route, and this view). In
+your own words, what's the full journey that array takes from the
+database to this <li> tag?
+
+----------------------------------------------------------------
+
+WILLIAM: The categories array begins in the model file, where a
+database query fetches the raw data
+Next, it travels to the route/controller file, where the async
+function receives that fetched array and passes it into
+res.render('categories', { categories }).
+Finally, the view (EJS template) receives that passed object,
+extracts the array by its key name, and uses the forEach loop to pull
+out each category.name and write it directly into the <li> tag.
+
+----------------------------------------------------------------
+
+COACH: That's a genuinely complete trace — model to route to view,
+with the right mechanism named at each hop (the query, the render
+call, the key extraction, the loop). That's exactly the kind of
+full-picture understanding this exercise is meant to build.
+
+That covers all four topics: database design and the junction table,
+the Node.js data access layer and async/await, Express routing and
+the render bridge, and now EJS rendering with the full data trace.
+Nice work today, William — a couple of real gaps got surfaced (the
+await/Promise mechanics, the shorthand property syntax) and you
+worked through both rather than just nodding along, which is exactly
+the point of this.
+
+================================================================
+END OF SESSION
+================================================================
