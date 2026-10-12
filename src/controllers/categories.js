@@ -1,8 +1,9 @@
 // Import any needed model functions
 import { getAllCategories, getCategoriesByProjectId } from '../models/categories.js';
+import { getProjectDetails } from '../models/projects.js';
 import {getCategoryDetails } from '../models/categories.js';
 import { getProjectsByCategoryId } from '../models/categories.js';
-import { createCategory, updateCategory } from '../models/categories.js';
+import { createCategory, updateCategory, updateCategoryAssignments } from '../models/categories.js';
 import { body, validationResult } from 'express-validator';
 
 // Define validation rules for category form
@@ -37,7 +38,7 @@ const showAssignCategoriesForm = async (req, res) => {
 
     const projectDetails = await getProjectDetails(projectId);
     const categories = await getAllCategories();
-    const assignedCategories = await getCategoriesByServiceProjectId(projectId);
+    const assignedCategories = await getCategoriesByProjectId(projectId);
 
     const title = 'Assign Categories to Project';
 
@@ -47,12 +48,19 @@ const showAssignCategoriesForm = async (req, res) => {
 const processAssignCategoriesForm = async (req, res) => {
     const projectId = req.params.projectId;
     const selectedCategoryIds = req.body.categoryIds || [];
-    
-    // Ensure selectedCategoryIds is an array
+
+    // Ensure selectedCategoryIds is always an array, even if only one checkbox was checked
     const categoryIdsArray = Array.isArray(selectedCategoryIds) ? selectedCategoryIds : [selectedCategoryIds];
-    await updateCategoryAssignments(projectId, categoryIdsArray);
-    req.flash('success', 'Categories updated successfully.');
-    res.redirect(`/project/${projectId}`);
+
+    try {
+        await updateCategoryAssignments(projectId, categoryIdsArray);
+        req.flash('success', 'Categories updated successfully.');
+        return res.redirect(`/project/${projectId}`);
+    } catch (error) {
+        console.error('Error updating category assignments:', error);
+        req.flash('error', 'There was an error updating the categories for this project.');
+        return res.redirect(`/assign-categories/${projectId}`);
+    }
 };
 
 const showNewCategoryForm = async (req, res) => {
@@ -70,10 +78,16 @@ const processNewCategoryForm = async (req, res) => {
     }
 
     const { name } = req.body;
-    const categoryId = await createCategory(name);
 
-    req.flash('success', 'Category added successfully!');
-    res.redirect(`/category/${categoryId}`);
+    try {
+        const categoryId = await createCategory(name);
+        req.flash('success', 'Category added successfully!');
+        return res.redirect(`/category/${categoryId}`);
+    } catch (error) {
+        console.error('Error creating category:', error);
+        req.flash('error', 'There was an error creating the category.');
+        return res.redirect('/new-category');
+    }
 };
 
 const showEditCategoryForm = async (req, res) => {
@@ -96,10 +110,16 @@ const processEditCategoryForm = async (req, res) => {
     }
 
     const { name } = req.body;
-    await updateCategory(categoryId, name);
 
-    req.flash('success', 'Category updated successfully!');
-    res.redirect(`/category/${categoryId}`);
+    try {
+        await updateCategory(categoryId, name);
+        req.flash('success', 'Category updated successfully!');
+        return res.redirect(`/category/${categoryId}`);
+    } catch (error) {
+        console.error('Error updating category:', error);
+        req.flash('error', 'There was an error updating the category.');
+        return res.redirect(`/edit-category/${categoryId}`);
+    }
 };
 // Export any controller functions
 export { showCategoriesPage, showCategoriesDetailsPage, 

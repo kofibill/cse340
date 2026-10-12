@@ -75,21 +75,21 @@ const getProjectDetails = async (id) => {
         JOIN public.organization o ON sp.organization_id = o.organization_id
         WHERE sp.project_id = $1;
     `;
-
+    
     const queryParams = [id];
     const result = await db.query(query, queryParams);
 
     return result.rows.length > 0 ? result.rows[0] : null;
 };
 
-const createProject = async (title, description, location, date, organizationId) => {
+const createProject = async (title, description, location, projectDate, organizationId) => {
     const query = `
-      INSERT INTO project (title, description, location, date, organization_id)
+      INSERT INTO service_projects (title, description, location, project_date, organization_id)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING project_id;
     `;
 
-    const queryParams = [title, description, location, date, organizationId];
+    const queryParams = [title, description, location, projectDate, organizationId];
     const result = await db.query(query, queryParams);
 
     if (result.rows.length === 0) {
@@ -101,7 +101,7 @@ const createProject = async (title, description, location, date, organizationId)
     }
 
     return result.rows[0].project_id;
-}
+};
 
 const updateProject = async (projectId, organizationId, title, description, location, projectDate) => {
     const query = `
