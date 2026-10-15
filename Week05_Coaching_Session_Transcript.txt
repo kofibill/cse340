@@ -1,0 +1,406 @@
+WEEK 05 COACHING SESSION TRANSCRIPT
+Learner: William
+Session Type: Coaching Session (not a test)
+====================================================================
+
+COACH: Welcome! Just to be clear from the start, this is a coaching session, not a test. It is perfectly okay—and even encouraged—to say "I don't know" or "I made a mistake." That's the fastest way we'll learn today.
+
+Hi William! I'm your Learning Coach and Software Mentor for this Week 05 session. This is a safe space where mistakes are welcome, and the goal is to talk through your assignment and the decisions you made, not to grade anything.
+
+Since we're in a chat interface, whenever we discuss code, please paste the snippet right into the chat.
+
+Let's start with Topic 1: Registration and Password Hashing. Could you paste the code from your project that creates a new user, including the part where the password gets hashed, and walk me through what it does and why you wrote it that way?
+
+--------------------------------------------------------------------
+TOPIC 1: REGISTRATION AND PASSWORD HASHING
+--------------------------------------------------------------------
+
+WILLIAM:
+```javascript
+const createUser = async (name, email, passwordHash) => {
+    const default_role = 'user';
+    const query = `
+        INSERT INTO users (name, email, password_hash, role_id)
+        VALUES ($1, $2, $3, (SELECT role_id FROM roles WHERE role_name = $4))
+        RETURNING user_id
+    `;
+    const queryParams = [name, email, passwordHash, default_role];
+
+    const result = await db.query(query, queryParams);
+
+    if (result.rows.length === 0) {
+        throw new Error('Failed to create user');
+    }
+
+    if (process.env.ENABLE_SQL_LOGGING === 'true') {
+        console.log('Created new user with ID:', result.rows[0].user_id);
+    }
+
+    return result.rows[0].user_id;
+};
+```
+
+okay, so this function is called a create user function which accepts name, email, and passwordHash as parameters. this function also creates a new user inside the database with the username, email, password and also the user's role.
+
+COACH: Good start, William. You've got the main idea: this function inserts a new row into the users table and returns the new user's ID. Two details in your code are worth noticing.
+
+- The role isn't passed in. The function sets default_role = 'user' and uses a subquery, (SELECT role_id FROM roles WHERE role_name = $4), to look up the matching role_id. Every new account starts with the lowest-privilege role this way, and nobody can pick a role through the form.
+- The $1, $2, $3, $4 placeholders are parameterized queries. The values travel separately from the SQL text, which protects you from SQL injection.
+
+Look at the third parameter, though. It's named passwordHash, not password, which means the password has already been hashed before it reaches this function. Can you paste the code where the hashing happens (probably in your registration controller) and walk me through how the plain password becomes passwordHash?
+
+WILLIAM:
+```javascript
+const processUserRegistrationForm = async (req, res) => {
+    const { name, email, password } = req.body;
+
+    try {
+        // Hash the password before storing it
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        // Create the user in the database
+        const userId = await createUser(name, email, passwordHash);
+
+        // Redirect to the home page after successful registration
+        req.flash('success', 'Registration successful! Please log in.');
+        res.redirect('/');
+    } catch (error) {
+        console.error('Error registering user:', error);
+        req.flash('error', 'An error occurred during registration. Please try again.');
+        res.redirect('/register');
+    }
+};
+```
+
+okay so this function processes the user registration form after it has been filled by the user. now you will see in the try block that the is a variable named passwordHash that contains an await bcrypt.hash () containing two arguments of password and salt. now bcrypt.hash(password) is responsible for hashing the password from plan text to unreadable characters. The salt parameter (typically 10) determines how many times the hashing algorithm runs. Higher numbers are more secure but slower. The function returns a promise that resolves to the hashed password string.
+
+COACH: You've got the main idea: bcrypt.hash turns the plain-text password into an unreadable string, and await is needed because hashing is deliberately slow and returns a Promise. Your point that higher numbers are more secure but slower is also correct. One part needs sharpening, because two different things are getting mixed together.
+
+- 10 is the cost factor (also called salt rounds). You pass it to bcrypt.genSalt(10). It means the hashing work is repeated 2^10 (1,024) times, and each +1 doubles the time.
+- The salt variable is not that number. genSalt returns a random string, and that string is what you pass to bcrypt.hash(password, salt) as the second argument.
+
+The salt matters because of what it does to the stored hash. Suppose two different users register with the exact same password, Pass1234. Without a salt, both would get an identical hash.
+
+Why do you think it would be a problem if two users with the same password ended up with identical hashes in your database, and how would a random salt fix that?
+
+WILLIAM: i cannot think of any answer, please explain to me why
+
+COACH: That's fine, William. This is a tricky idea, so here's the explanation.
+
+The problem without a salt
+
+A hash function always gives the same output for the same input. If Pass1234 always hashes to the same string, two things go wrong:
+
+1. Duplicates are visible. If someone gets a copy of your database, every user with the same hash obviously has the same password. Cracking one cracks them all.
+2. Precomputed tables work. Attackers keep huge lists of common passwords and their hashes (called rainbow tables). They just look your hash up in the list, with no cracking needed.
+
+What the salt does
+
+bcrypt.genSalt(10) creates a new random string every time it's called. That string is mixed into the password before hashing, so:
+
+- User A with Pass1234 and salt x7Qp... gets one hash.
+- User B with Pass1234 and salt m2Zk... gets a completely different hash.
+
+The duplicates disappear, and a precomputed table is useless because the attacker would need a separate table for every possible salt.
+
+Where the salt is stored
+
+You don't need a separate column for it. bcrypt writes the salt and the cost factor into the hash string itself. A stored value looks like $2b$10$<salt><hash>, and the 10 in there is your cost factor.
+
+Here's my question. Since every hash uses a different random salt, you can't just hash the login password again and compare strings the way you might expect. How do you think the server checks whether a password entered at login is correct?
+
+WILLIAM: well, i think the server will check what is entered at login and compare it with what is stored on the database. if they match, then the server will know its correct and also know the user who entered
+
+COACH: Your instinct is right that the server compares what was entered at login with what's stored. The detail is that it can't compare the two strings directly. The stored value is a salted hash, and the password typed at login is plain text, so they'd never be equal. Instead, bcrypt provides a function for this:
+
+```javascript
+const match = await bcrypt.compare(plainPasswordFromLogin, storedHash);
+```
+
+bcrypt.compare reads the salt and cost factor out of the stored hash and hashes the entered password with those same settings. It returns true if the results match and false if they don't. That's why the salt can live inside the hash string, and why the server never needs to know or store the original password.
+
+That covers Topic 1. You've got the full path from registration form to hashed password in the database, and you know how it's verified later.
+
+Let's move to Topic 2: Login and Sessions. Could you paste your login code, the function that handles the login form and starts the session for the user, and walk me through what it does step by step?
+
+--------------------------------------------------------------------
+TOPIC 2: LOGIN AND SESSIONS
+--------------------------------------------------------------------
+
+WILLIAM:
+```javascript
+const processLoginForm = async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        const user = await authenticateUser(email, password);
+        if (user) {
+            // Store user info in session
+            req.session.user = user;
+            req.flash('success', 'Login successful!');
+
+            if (res.locals.NODE_ENV === 'development') {
+                console.log('User logged in:', user);
+            }
+
+            res.redirect('/dashboard');
+        } else {
+            req.flash('error', 'Invalid email or password.');
+            res.redirect('/login');
+        }
+    } catch (error) {
+        console.error('Error during login:', error);
+        req.flash('error', 'An error occurred during login. Please try again.');
+        res.redirect('/login');
+    }
+};
+```
+
+Nice, so this function handles the login form . so because it uses a post method to the server to process, req.body gets the hidden email and password from the request body. inside the try block, there is an await authenticateUser that promises to check and return the right user who logged in. the user's email and password it authenticated. now if it authenticate and gets the right user then req.session.user = user;
+            req.flash('success', 'Login successful!'); now stores and start the session for that user and displays a flash message for success. I am not sure but i also think if (res.locals.NODE_ENV === 'development') {
+                console.log('User logged in:', user); is for the developer to test and see if the user is authenticated and gets in successfully. after the user gets is, then the user is redirected to the dashboard, else if the user isnt successful, then the user is redirected to the login page again. then an error message shows
+
+COACH: Your walkthrough is solid, William. You've got the full flow: authenticate, store the user in the session and flash a message on success, then redirect to /dashboard. On failure, flash an error and send the user back to /login. You were also right about the development check: it's a debugging aid, so the developer can see who logged in without printing to the console in production.
+
+Two small refinements:
+
+- req.body isn't hidden. The browser sends it in the request body (not the URL), but it's still readable in dev tools or by anyone intercepting plain HTTP, which is why real sites use HTTPS.
+- The session already exists before login. Your saveUninitialized: true setting gave the visitor a session and cookie on their first request. The line req.session.user = user doesn't create it. It writes the user's info into the session, so every later request carrying that cookie can be recognized as this logged-in user. That stored user is what your protected routes will check in Topic 3.
+
+Most of the security work happens inside authenticateUser, so let's look there. Can you paste that function and walk me through how it finds the user, checks the password, and what it returns?
+
+WILLIAM:
+```javascript
+const authenticateUser = async (email, password) => {
+    // Fetch the user by email
+    const user = await findUserByEmail(email);
+    if (!user) {
+        return null;
+    }
+
+    // Verify the password
+    const isPasswordValid = await verifyPassword(password, user.password_hash);
+    if (!isPasswordValid) {
+        return null;
+    }
+
+    // Remove the password_hash before returning the user object
+    delete user.password_hash;
+
+    return user;
+};
+```
+
+Yes, so this function is responsible for verifying the user. it verifies the user email and the password. now  there is an await function named findUserByEmail that promises to find and return the right user. now that function finds the user specifically by looking for the user's email, so with the user's unique email, the user is found. if it didnt find the rightful user, it returns a null. also for the password, there is an await function called verifyPassword that that promises to verify the login password with the hash password stalled in the database. if the the password it right then cool, if not then it returns a null but removes the hash before getting back to the user
+
+COACH: Nice walkthrough, William. You described the flow correctly: look up the user by email, return null if nobody is found, verify the password against the stored hash, and return the user on success. You were right to call out the await on both helper functions too.
+
+One correction: the delete user.password_hash line only runs on the success path. If the password is wrong, the function has already returned null before reaching it. The hash is removed so the user object stored in the session (req.session.user = user) and printed in your dev log doesn't contain it. A password hash has no business sitting in the session.
+
+Notice that the function returns the same null whether the email doesn't exist or the password is wrong. Your login controller then shows the same message either way: "Invalid email or password." Why do you think that choice matters, compared with telling the user exactly which of the two was wrong?
+
+WILLIAM: well, i think it is still for security reasons and it if it displays all the two, it forces the user to retype correctly both the email and password while not knowing which one was the problem. i do not know if i am right
+
+COACH: You're right that it's for security, William, but the main reason is a bit different from the one you gave.
+
+The real risk is user enumeration. Suppose the app said "No account with that email" for a missing email and "Wrong password" for a bad password. An attacker could then try thousands of email addresses and learn exactly which ones have accounts on your site. Those become targets for password guessing, phishing, or credential-stuffing with passwords leaked from other sites. A single generic message, "Invalid email or password," gives away nothing. Your authenticateUser returning the same null in both cases is what makes that possible.
+
+The user-experience cost is small, since a real user just rechecks both fields. Returning the same result on both paths is a good habit, and it was already in your code.
+
+That covers Topic 2. You can trace the login form to authenticateUser, then to bcrypt verification, then to req.session.user, and you know why the hash gets stripped and why the error message stays generic.
+
+Let's move to Topic 3: Protected Access Middleware. Could you paste your requireLogin and requireRole middleware, and walk me through what each one checks and what happens when the check fails?
+
+--------------------------------------------------------------------
+TOPIC 3: PROTECTED ACCESS MIDDLEWARE
+--------------------------------------------------------------------
+
+WILLIAM:
+```javascript
+const requireLogin = (req, res, next) => {
+    if (!req.session || !req.session.user) {
+        req.flash('error', 'You must be logged in to access that page.');
+        return res.redirect('/login');
+    }
+    next();
+};
+const requireRole = (role) => {
+    return (req, res, next) => {
+        // Check if user is logged in first
+        if (!req.session || !req.session.user) {
+            req.flash('error', 'You must be logged in to access this page.');
+            return res.redirect('/login');
+        }
+
+        // Check if user's role matches the required role
+        if (req.session.user.role_name !== role) {
+            req.flash('error', 'You do not have permission to access this page.');
+            return res.redirect('/dashboard');
+        }
+
+        // User has required role, continue
+        next();
+    };
+};
+```
+
+Yes, the requireLogin function checks if a user is logged in to access some certain pages in the app. it contains an if statement to check if a session is stored and started for the user. if there is no session stored and started for the user, then an error message pops up and says the user must be logged in to access that particular page the user is seeking. then the user is redirected back to the login page. now if the user is logged in, the requireLogin middleware now pushes the request to the next middleware function using the next(). Now, the requireRole functions checks for specific roles, either the user or the admin. it also checks if the user is logged in and if not it directs them to the log in page. now if the user is truly logged in, then it will check if the user is entering some pages  meant for the admin only. if the logged in person is an admin then it gives access to admin privileges, if the logged in person isnt an admin, then it throws an error message saying the user doesnt have access or permission to that page. then it redirects you to the dashbord page
+
+COACH: You've explained both middleware well, William. requireLogin checks for a user in the session, redirects to /login with a flash message if there isn't one, and otherwise calls next() to pass the request along. requireRole does the same login check and then compares the user's role, sending the wrong role back to /dashboard. Your use of return before res.redirect is the same habit we talked about in Week 4. It stops the function so next() never runs after a redirect.
+
+One refinement: requireRole isn't hard-coded to "admin". It takes a role parameter, so it can check for any role name. Notice the shape of it, too. requireRole is a function that returns another function, the (req, res, next) one that Express actually runs. That structure is called a middleware factory.
+
+Here's my question. In a route file you'd write requireLogin with no parentheses but requireRole('admin') with parentheses and an argument. Why do you think they're written differently? You can paste a route that uses each of them if that helps.
+
+WILLIAM:
+```javascript
+router.get('/dashboard', requireLogin, showDashboard);
+router.get('/users', requireRole('admin'), showUsersPage);
+```
+yeah they are written differently because the dashboard route is not restricted and it is accessible to both the users and the admin. but for the showUsersPage, it has the requireRole('admin') because that page is restricted only to the use and view of the admin. random users cannot access that page
+
+COACH: That's the right reading of what each route does, William. /dashboard is open to any logged-in user, and /users is limited to admins. That explains why you chose each middleware. It doesn't quite explain the parentheses, so here's the difference.
+
+- requireLogin is already the finished (req, res, next) function. You hand Express the function itself, and Express calls it whenever a request arrives.
+- requireRole('admin') calls requireRole right away, while the route is being set up. That call returns a new (req, res, next) function with 'admin' locked inside it, and that returned function is what Express runs on each request. This is why one requireRole can protect many routes: requireRole('admin'), requireRole('manager'), and so on.
+
+Here's my question. Suppose someone accidentally wrote the route as router.get('/users', requireRole, showUsersPage);, leaving off ('admin'). What do you think would happen when a request comes in for /users?
+
+WILLIAM: leaving off the ('admin') leaves the route unprotected to other users and when request comes in ot goes to showUsersPage
+
+COACH: That's a natural guess, William, and you're right that the route would be broken. The outcome is different, though, and it's an interesting one.
+
+Express would treat requireRole as a normal middleware and call it as requireRole(req, res, next). Your function expects a single argument called role, so role would become the req object. The function runs, builds the inner (req, res, next) function, and returns it. Nothing ever calls that returned function, so next() is never called and no response is ever sent. The request hangs until the browser times out, and showUsersPage never runs for anyone, admins included.
+
+So it fails closed (nobody gets in), which is the safer way to fail, but it's still a bug. Adding the parentheses and argument fixes it.
+
+That covers Topic 3. You know how both middleware work, why return goes before each redirect, and how the factory pattern lets one function protect routes for different roles.
+
+Let's move to Topic 4: Protected Access Links and Navigation. Even with the routes protected, you probably don't want to show an admin-only link to people who can't use it. Could you paste the EJS from your header or navigation that shows or hides links based on whether someone is logged in or what role they have, and walk me through how it works?
+
+--------------------------------------------------------------------
+TOPIC 4: PROTECTED ACCESS LINKS AND NAVIGATION
+--------------------------------------------------------------------
+
+WILLIAM:
+```html
+<% if (typeof isLoggedIn !== 'undefined' && isLoggedIn) { %>
+                <li><a href="/logout">Logout</a></li>
+            <% } else { %>
+                <li><a href="/register">Register</a></li>
+                <li><a href="/login">Login</a></li>
+            <% } %>
+```
+
+with this code in my header.ejs the if statement shows that if the user is logged in, then show logout on the navigation, but if the user is logged out then show the register and login page
+
+COACH: Your explanation is right, William: logged-in users see Logout, and logged-out visitors see Register and Login. Showing only the links that make sense for the visitor's state keeps the navigation clean.
+
+Look at the condition itself: typeof isLoggedIn !== 'undefined' && isLoggedIn. You could have written just if (isLoggedIn). Why do you think the typeof isLoggedIn !== 'undefined' part is there first?
+
+WILLIAM: well i dont know, kindly explain it to me as it came as part of code i didnt undertstand
+
+COACH: No problem, William. This is one of those lines that's easy to copy without knowing why it's written that way.
+
+What the guard protects against
+
+In EJS, isLoggedIn is a variable that has to be handed to the template, usually through res.render(...) or res.locals. If it was never provided on some request, writing if (isLoggedIn) crashes the page with a ReferenceError: isLoggedIn is not defined. JavaScript throws that error whenever you read a variable that doesn't exist at all.
+
+typeof is the one exception. Using typeof on a variable that doesn't exist doesn't throw. It just returns the string 'undefined'. So the condition works like this:
+
+- typeof isLoggedIn !== 'undefined' asks "does this variable exist at all?" and never crashes.
+- && isLoggedIn then asks "and is it true?" It only runs if the first part passed.
+
+If the variable is missing, the whole condition is false, the else branch runs, and the visitor simply sees Register and Login instead of a crashed page. It's a defensive habit that keeps one forgotten variable from breaking every page that includes your header.
+
+Where the variable usually comes from
+
+Since the header is included on every page, isLoggedIn is normally set once in middleware in server.js, so every template gets it automatically.
+
+Here's my question. Can you paste the middleware in your server.js where isLoggedIn gets its value, and tell me how you think it decides whether to set it to true or false?
+
+WILLIAM:
+```javascript
+app.use((req, res, next) => {
+    res.locals.isLoggedIn = false;
+    if (req.session && req.session.user) {
+        res.locals.isLoggedIn = true;
+    }
+
+    res.locals.user = req.session.user || null;
+
+    res.locals.NODE_ENV = NODE_ENV;
+    next();
+});
+```
+
+well i do not know, i am open to learn from you
+
+COACH: Here's how that middleware works, William.
+
+How it works
+
+1. app.use((req, res, next) => { ... }) runs on every request, before your routes.
+2. res.locals is a special object. Anything you attach to it is automatically available in every EJS template for that request, with no need to pass it through res.render.
+3. It starts with res.locals.isLoggedIn = false, then switches it to true only if there is a session with a user in it. That's the same req.session.user your login function stored.
+4. res.locals.user = req.session.user || null makes the whole user object available to templates too, or null if nobody is logged in.
+5. next() hands the request on to the next middleware or route.
+
+This is why your header can use isLoggedIn on every page without each route passing it in. Because this middleware always sets it, the typeof check in your header is mostly a safety net. It only matters for a page rendered before this middleware runs, such as some error pages. It's harmless to keep.
+
+Why user matters for Topic 4
+
+Your session user includes role_name, the same field requireRole checks. Since res.locals.user exposes it to every template, your navigation can show or hide links by role, not just by login state.
+
+Here's my question. Suppose you want a "Users" link in your navigation that only admins can see. Using isLoggedIn and user, how would you write that condition in your header EJS? A rough attempt is fine, and I'm happy to help refine it.
+
+WILLIAM:
+```html
+<% if (isLoggedIn && user && user.isAdmin) { %>
+    <a href="/users">Users</a>
+<% } %>
+```
+
+COACH: Your structure is good, William. You're checking that someone is logged in, that user exists so the template doesn't crash on null, and then looking at a role-related property on the user. The && chain stops safely at the first false value.
+
+There's one thing to check against your own code. Look back at requireRole: it decides whether someone is an admin by comparing req.session.user.role_name to the required role. Your header checks user.isAdmin, but nothing we've seen puts a property called isAdmin on the session user. If it doesn't exist, it would be undefined, so the link would never appear, even for admins.
+
+Here's my question. Based on how requireRole checks the role, how would you rewrite the last part of that condition so the Users link shows only for admins?
+
+WILLIAM:
+```html
+<% if (isLoggedIn && user && user.role === 'admin') { %>
+    <a href="/users">Users</a>
+<% } %>
+```
+
+COACH: You're very close, William. The structure and the strict === comparison are right. Only the property name is off. requireRole compares req.session.user.role_name, so the template needs the same name, because user in your header is that same session object:
+
+```html
+<% if (isLoggedIn && user && user.role_name === 'admin') { %>
+    <a href="/users">Users</a>
+<% } %>
+```
+
+Both the middleware and the template read from one source, the session user, so they should agree on the property name. A mismatch like role vs role_name fails silently: nothing crashes, the link just never shows.
+
+This raises a question about the data. When createUser inserted a new user, it stored a role_id, not a role_name. The session user from authenticateUser somehow ends up with role_name on it. Where do you think that value comes from, and which function would have to put it there?
+
+WILLIAM: The `role_name` string most likely comes from a SQL `JOIN` query that pulls the human-readable name from a separate `roles` lookup table, and the function responsible for attaching it to the session is your `serializeUser` function (if using Passport.js) or a custom session-population function inside your login/session middleware.
+
+COACH: The JOIN part is right, William. Passport isn't something we've seen in your project, though. Your own code already shows the path: processLoginForm calls authenticateUser, which calls findUserByEmail, and then req.session.user = user stores whatever that function returned. So role_name has to be attached by the SQL inside findUserByEmail, probably something like SELECT users.*, roles.role_name FROM users JOIN roles ON users.role_id = roles.role_id WHERE email = $1. You can check this against your own file.
+
+Hiding the Users link is a convenience, not security. Someone can still type /users into the address bar, and requireRole('admin') is what stops them. You need both layers.
+
+That wraps up Topic 4 and all four topics for Week 05:
+1. Registration and Password Hashing: you traced the form through bcrypt.genSalt and bcrypt.hash into createUser, and learned how salts prevent matching hashes and how bcrypt.compare verifies a login.
+2. Login and Sessions: you walked through processLoginForm and authenticateUser, why the hash is removed, and why the error message stays generic to prevent user enumeration.
+3. Protected Access Middleware: you explained requireLogin and the requireRole middleware factory, and why requireRole('admin') needs its parentheses.
+4. Protected Access Links and Navigation: you used isLoggedIn and user.role_name from res.locals to show links by role.
+
+You were honest about what you didn't know and worked through it well. I'll save the transcript now.
+
+====================================================================
+END OF TRANSCRIPT
+====================================================================

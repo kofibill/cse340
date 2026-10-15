@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import {createUser, authenticateUser, getAllUsers} from '../models/users.js';
+import { getVolunteeredProjectsByUserId, removeVolunteer } from '../models/volunteers.js';
 
 
 const showUserRegistrationForm = (req, res) => {
@@ -74,12 +75,15 @@ const requireLogin = (req, res, next) => {
     next();
 };
 
-const showDashboard = (req, res) => {
+const showDashboard = async (req, res) => {
     const user = req.session.user;
-    res.render('dashboard', { 
+    const volunteeredProjects = await getVolunteeredProjectsByUserId(user.user_id);
+
+    res.render('dashboard', {
         title: 'Dashboard',
         name: user.name,
-        email: user.email
+        email: user.email,
+        volunteeredProjects
     });
 };
 /**
@@ -114,7 +118,22 @@ const showUsersPage = async (req, res) => {
 
     res.render('users', { title, users });
 };
+const processRemoveVolunteerFromDashboard = async (req, res) => {
+    const projectId = req.params.id;
+    const userId = req.session.user.user_id;
+
+    try {
+        await removeVolunteer(userId, projectId);
+        req.flash('success', 'You have been removed as a volunteer for this project.');
+    } catch (error) {
+        console.error('Error removing volunteer signup:', error);
+        req.flash('error', 'There was an error removing your volunteer signup.');
+    }
+
+    res.redirect('/dashboard');
+};
 export { showUserRegistrationForm, requireRole,
     processUserRegistrationForm, showLoginForm, 
-    processLoginForm, processLogout, showDashboard, requireLogin, showUsersPage
+    processLoginForm, processLogout, showDashboard, requireLogin, showUsersPage,
+    processRemoveVolunteerFromDashboard
 };

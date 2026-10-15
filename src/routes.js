@@ -20,7 +20,8 @@ import { showAssignCategoriesForm, processAssignCategoriesForm } from './control
 import { showEditProjectForm, processEditProjectForm } from './controllers/projects.js';
 import { showNewCategoryForm, processNewCategoryForm, showEditCategoryForm, processEditCategoryForm, categoryValidation} from './controllers/categories.js';
 import { showUserRegistrationForm, processUserRegistrationForm, showLoginForm, processLoginForm, processLogout, showDashboard, requireLogin, requireRole, showUsersPage } from './controllers/users.js';
-
+import { processVolunteerSignup, processVolunteerRemoval } from './controllers/projects.js';
+import { processRemoveVolunteerFromDashboard } from './controllers/users.js';
 const router = express.Router();
 
 router.get('/', showHomePage);
@@ -52,6 +53,9 @@ router.get('/logout', processLogout);
 // Protected dashboard route
 router.get('/dashboard', requireLogin, showDashboard);
 router.get('/users', requireRole('admin'), showUsersPage);
+router.post('/volunteer/:id', requireLogin, processVolunteerSignup);
+router.post('/remove-volunteer/:id', requireLogin, processVolunteerRemoval);
+router.post('/dashboard/remove-volunteer/:id', requireLogin, processRemoveVolunteerFromDashboard);
 
 // error-handling routes
 router.get('/test-error', testErrorPage);

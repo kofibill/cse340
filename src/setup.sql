@@ -121,3 +121,11 @@ JOIN roles r ON u.role_id = r.role_id;
 
 -- Delete the test user
 DELETE FROM users WHERE email = 'test@example.com';
+UPDATE users SET role_id = (SELECT role_id FROM roles WHERE role_name = 'admin') WHERE email = 'admin@example.com';
+SELECT users.user_id, users.email, roles.role_name FROM users JOIN roles ON users.role_id = roles.role_id;
+
+CREATE TABLE volunteers (
+    user_id INTEGER NOT NULL REFERENCES users(user_id),
+    project_id INTEGER NOT NULL REFERENCES service_projects(project_id),
+    PRIMARY KEY (user_id, project_id)
+);
